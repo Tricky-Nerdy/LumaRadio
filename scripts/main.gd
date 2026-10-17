@@ -68,6 +68,8 @@ func _play_pattern(tones: Array, duration: float) -> void:
     player.play()
 
 func _event(kind: String, details: Dictionary = {}) -> void:
+    if not OS.is_debug_build():
+        return
     var record := {"timestamp": Time.get_datetime_string_from_system(true), "session": session_id, "event": kind, "data": details}
     var file := FileAccess.open(telemetry_path, FileAccess.READ_WRITE)
     if file == null:
