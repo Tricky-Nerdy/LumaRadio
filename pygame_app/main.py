@@ -72,12 +72,8 @@ def main():
             screen.blit(surf, (round(offset_x + x * scale), round(offset_y + y * scale)))
         buttons = []
         for i, name in enumerate(labels):
-            if i < 10:
-                x, y, bw = 54 + (i % 2) * 191, 252 + (i // 2) * 53, 181
-            else:
-                j = i - 10
-                x, y, bw = 54 + (j // 5) * 191, 535 + (j % 5) * 42, 181
-            buttons.append((name, rect(x, y, bw, 36)))
+            x, y, bw = 56 + (i % 4) * 94, 260 + (i // 4) * 92, 84
+            buttons.append((name, rect(x, y, bw, 84)))
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
@@ -102,12 +98,13 @@ def main():
             if icon_sheet is not None:
                 icon_id = idx % 64
                 src = pygame.Rect(8 + (icon_id % 8) * 72, 8 + (icon_id // 8) * 72, 64, 64)
-                icon = pygame.transform.smoothscale(icon_sheet.subsurface(src), (max(1, round(27 * scale)), max(1, round(27 * scale))))
-                screen.blit(icon, (box.centerx - icon.get_width() // 2, box.top + round(2 * scale)))
+                icon = pygame.transform.smoothscale(icon_sheet.subsurface(src), (max(1, round(42 * scale)), max(1, round(27 * scale))))
+                screen.blit(icon, (box.centerx - icon.get_width() // 2, box.top + round(5 * scale)))
             pygame.draw.rect(screen, (130, 143, 126), box, max(1, round(2 * scale)), border_radius=round(7 * scale))
-            txt = small.render(name, True, (244, 246, 233))
+            caption = name.replace(" CAPTURED", "+").replace(" LOST", "-")
+            txt = small.render(caption, True, (244, 246, 233))
             txt = pygame.transform.smoothscale(txt, (max(1, round(txt.get_width() * scale)), max(1, round(txt.get_height() * scale))))
-            screen.blit(txt, txt.get_rect(center=(box.centerx, box.bottom - round(8 * scale))))
+            screen.blit(txt, txt.get_rect(center=(box.centerx, box.bottom - round(14 * scale))))
         label("LUMA ACTUAL  •  GRACIE 01", 98, 746, small, (208, 221, 199))
         pygame.display.flip()
         clock.tick(30)
