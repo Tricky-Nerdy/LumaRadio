@@ -70,6 +70,7 @@ def main():
     held_name = None
     held_channel = None
     page = 0
+    ptt_active = False
     light_mode = 0
     brightness = 0.55
     start_ticks = pygame.time.get_ticks()
@@ -87,6 +88,7 @@ def main():
         for i, name in enumerate(labels[page * 16:(page + 1) * 16]):
             x, y, bw = 56 + (i % 4) * 94, 284 + (i // 4) * 98, 84
             buttons.append((name, rect(x, y, bw, 86)))
+        ptt_button = rect(180, 676, 120, 90)
         prev_button = rect(60, 690, 110, 36)
         next_button = rect(310, 690, 110, 36)
         mode_button = rect(54, 235, 178, 28)
@@ -95,11 +97,20 @@ def main():
             if event.type == pygame.QUIT:
                 running = False
             if event.type == pygame.MOUSEBUTTONUP and event.button == 1:
+                if ptt_active:
+                    ptt_active = False
+                    status = "PTT RELEASED"
+                    log("ptt_release")
                 if held_channel is not None:
                     held_channel.stop()
                     held_channel = None
                     held_name = None
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                if ptt_button.collidepoint(event.pos):
+                    ptt_active = True
+                    status = "PTT HELD - LOCAL ONLY"
+                    log("ptt_press")
+                    continue
                 if prev_button.collidepoint(event.pos):
                     page = max(0, page - 1)
                     continue
@@ -135,6 +146,10 @@ def main():
             held_channel.stop()
             held_name = None
             held_channel = None
+        if ptt_active and not pygame.mouse.get_pressed()[0]:
+            ptt_active = False
+            status = "PTT RELEASED"
+            log("ptt_release")
         screen.fill((14, 17, 17))
         pygame.draw.rect(screen, COLORS["body"], rect(26, 36, 428, 738), border_radius=round(34 * scale))
         pygame.draw.rect(screen, COLORS["edge"], rect(26, 36, 428, 738), max(1, round(5 * scale)), border_radius=round(34 * scale))
@@ -148,7 +163,11 @@ def main():
         label("LIGHT: " + MODES[light_mode], 60, 238, small, (244, 246, 233))
         pygame.draw.rect(screen, (61, 73, 65), brightness_slider, border_radius=5)
         pygame.draw.rect(screen, (235, 173, 76), rect(248, 242, 170 * brightness, 12), border_radius=3)
-        label("HOLD TO PLAY EFFECTS", 135, 732, small, (208, 221, 199))
+        label("PTT: HOLD • AUDIO LINK NOT CONNECTED", 76, 650, small, (208, 221, 199))
+        pygame.draw.ellipse(screen, (178, 54, 46) if ptt_active else (47, 105, 78), ptt_button)
+        pygame.draw.ellipse(screen, (205, 220, 194), ptt_button, max(1, round(3 * scale)))
+        ptt_label = title.render("MIC", True, (244, 246, 233))
+        screen.blit(ptt_label, ptt_label.get_rect(center=ptt_button.center))
         for nav_box, nav_text in ((prev_button, "PREV"), (next_button, "NEXT")):
             pygame.draw.rect(screen, COLORS["key"], nav_box, border_radius=6)
             nav = small.render(nav_text, True, (244, 246, 233))
@@ -166,7 +185,7 @@ def main():
             txt = small.render(caption, True, (244, 246, 233))
             txt = pygame.transform.smoothscale(txt, (max(1, round(txt.get_width() * scale)), max(1, round(txt.get_height() * scale))))
             screen.blit(txt, txt.get_rect(center=(box.centerx, box.bottom - round(14 * scale))))
-        label("LUMA ACTUAL  •  GRACIE 01", 98, 762, small, (208, 221, 199))
+        label("LUMA ACTUAL  •  GRACIE 01", 98, 770, small, (208, 221, 199))
         pygame.display.flip()
         clock.tick(30)
     log("session_end")
