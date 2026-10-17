@@ -53,6 +53,10 @@ def main():
     title = pygame.font.SysFont("dejavusans", 25, bold=True)
     labels = BUTTONS + [f"{p} CAPTURED" for p in POINTS] + [f"{p} LOST" for p in POINTS]
     status = "CH 05  •  READY"
+    icon_sheet = None
+    sheet_path = Path(__file__).parent / "assets" / "lumaradio_64_tile_sheet.png"
+    if sheet_path.exists():
+        icon_sheet = pygame.image.load(str(sheet_path)).convert_alpha()
     log("session_start")
     clock = pygame.time.Clock()
     running = True
@@ -93,12 +97,17 @@ def main():
         label("LUMA RADIO", 144, 104, title, COLORS["ink"])
         label(status[:25], 75, 157, font, COLORS["ink"])
         label("SIGNAL  5 / 9    •    OFFLINE", 75, 193, small, COLORS["ink"])
-        for name, box in buttons:
+        for idx, (name, box) in enumerate(buttons):
             pygame.draw.rect(screen, COLORS["key"], box, border_radius=round(7 * scale))
+            if icon_sheet is not None:
+                icon_id = idx % 64
+                src = pygame.Rect(8 + (icon_id % 8) * 72, 8 + (icon_id // 8) * 72, 64, 64)
+                icon = pygame.transform.smoothscale(icon_sheet.subsurface(src), (max(1, round(27 * scale)), max(1, round(27 * scale))))
+                screen.blit(icon, (box.centerx - icon.get_width() // 2, box.top + round(2 * scale)))
             pygame.draw.rect(screen, (130, 143, 126), box, max(1, round(2 * scale)), border_radius=round(7 * scale))
             txt = small.render(name, True, (244, 246, 233))
             txt = pygame.transform.smoothscale(txt, (max(1, round(txt.get_width() * scale)), max(1, round(txt.get_height() * scale))))
-            screen.blit(txt, txt.get_rect(center=box.center))
+            screen.blit(txt, txt.get_rect(center=(box.centerx, box.bottom - round(8 * scale))))
         label("LUMA ACTUAL  •  GRACIE 01", 98, 746, small, (208, 221, 199))
         pygame.display.flip()
         clock.tick(30)
