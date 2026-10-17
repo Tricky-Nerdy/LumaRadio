@@ -6,6 +6,7 @@ import time
 from array import array
 from pathlib import Path
 import pygame
+from radio_effects import PROFILES, samples
 
 WIDTH, HEIGHT = 480, 800
 RATE = 22050
@@ -51,7 +52,7 @@ def main():
     font = pygame.font.SysFont("dejavusans", 18, bold=True)
     small = pygame.font.SysFont("dejavusans", 15, bold=True)
     title = pygame.font.SysFont("dejavusans", 25, bold=True)
-    labels = BUTTONS + [f"{p} CAPTURED" for p in POINTS] + [f"{p} LOST" for p in POINTS]
+    labels = BUTTONS + list(PROFILES) + [f"{p} CAPTURED" for p in POINTS] + [f"{p} LOST" for p in POINTS]
     status = "CH 05  •  READY"
     icon_sheet = None
     sheet_path = Path(__file__).parent / "assets" / "lumaradio_64_tile_sheet.png"
@@ -60,6 +61,8 @@ def main():
     log("session_start")
     clock = pygame.time.Clock()
     running = True
+    held_name = None
+    held_channel = None
     while running:
         w, h = screen.get_size()
         scale = min(w / WIDTH, h / HEIGHT)
@@ -72,19 +75,32 @@ def main():
             screen.blit(surf, (round(offset_x + x * scale), round(offset_y + y * scale)))
         buttons = []
         for i, name in enumerate(labels):
-            x, y, bw = 56 + (i % 4) * 94, 260 + (i // 4) * 92, 84
-            buttons.append((name, rect(x, y, bw, 84)))
+            x, y, bw = 56 + (i % 4) * 94, 250 + (i // 4) * 67, 84
+            buttons.append((name, rect(x, y, bw, 61)))
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
+            if event.type == pygame.MOUSEBUTTONUP and event.button == 1:
+                if held_channel is not None:
+                    held_channel.stop()
+                    held_channel = None
+                    held_name = None
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 for name, box in buttons:
                     if box.collidepoint(event.pos):
                         status = name
                         log("sound " + name)
                         if pygame.mixer.get_init():
-                            tone_sequence(notes_for(name)).play()
+                            if name in PROFILES:
+                                held_channel = pygame.mixer.Sound(buffer=samples(name)).play(loops=-1)
+                                held_name = name
+                            else:
+                                tone_sequence(notes_for(name)).play()
                         break
+        if held_name and held_channel is not None and not pygame.mouse.get_pressed()[0]:
+            held_channel.stop()
+            held_name = None
+            held_channel = None
         screen.fill((14, 17, 17))
         pygame.draw.rect(screen, COLORS["body"], rect(26, 36, 428, 738), border_radius=round(34 * scale))
         pygame.draw.rect(screen, COLORS["edge"], rect(26, 36, 428, 738), max(1, round(5 * scale)), border_radius=round(34 * scale))
@@ -93,6 +109,7 @@ def main():
         label("LUMA RADIO", 144, 104, title, COLORS["ink"])
         label(status[:25], 75, 157, font, COLORS["ink"])
         label("SIGNAL  5 / 9    •    OFFLINE", 75, 193, small, COLORS["ink"])
+        label("HOLD EFFECT KEYS TO TRANSMIT", 75, 215, small, COLORS["ink"])
         for idx, (name, box) in enumerate(buttons):
             pygame.draw.rect(screen, COLORS["key"], box, border_radius=round(7 * scale))
             if icon_sheet is not None:
