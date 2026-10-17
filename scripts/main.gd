@@ -1,5 +1,8 @@
 extends Control
 var player: AudioStreamPlayer
+var socket := WebSocketPeer.new()
+var radio_url := "ws://192.168.0.102:8765"
+var reconnect_at := 0
 var status: Label
 var rng := RandomNumberGenerator.new()
 var telemetry_path := "user://lumaradio-telemetry.jsonl"
@@ -8,6 +11,7 @@ const SIGNALS := ["SQUAWK", "MORSE SOS", "MORSE CQ", "ROGER", "QSL", "73", "88",
 const POINTS := ["ALPHA", "BRAVO", "CHARLIE", "DELTA", "ECHO"]
 func _ready() -> void:
     rng.randomize()
+    _connect_radio()
     _event("session_start", {"platform": OS.get_name(), "version": "0.1.1"})
     var panel := VBoxContainer.new()
     panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -26,7 +30,8 @@ func _ready() -> void:
     mic.text = "🎙  PUSH TO TALK"
     mic.custom_minimum_size = Vector2(0, 180)
     mic.add_theme_font_size_override("font_size", 34)
-    mic.button_down.connect(func(): _signal("WALKIE"))
+    mic.button_down.connect(func(): _signal("WALKIE"); _send_radio("ptt", "down"))
+    mic.button_up.connect(func(): _send_radio("ptt", "up"))
     panel.add_child(mic)
     var grid := GridContainer.new()
     grid.columns = 3
@@ -48,10 +53,12 @@ func _button(parent: Node, title: String, action: Callable) -> void:
 func _objective(point: String, captured: bool) -> void:
     status.text = point + (" CAPTURED" if captured else " LOST")
     _event("objective", {"point": point, "captured": captured})
+    _send_radio("button", point + (" CAPTURED" if captured else " LOST"))
     _play_pattern([880, 1175, 1568] if captured else [1568, 784, 392], 0.13)
 func _signal(label: String) -> void:
     status.text = label
     _event("sound_pressed", {"name": label})
+    _send_radio("button", label)
     var patterns := {"SQUAWK":[880,660,920], "MORSE SOS":[650,650,650,0,650,650,650], "MORSE CQ":[650,0,650,0,650], "ROGER":[900,1150], "QSL":[1000,700,1000], "73":[650,900,650], "88":[850,850,1100], "STATIC":[100,120,90,130], "BLASTER":[1300,800,400], "WALKIE":[400,1200,500]}
     _play_pattern(patterns.get(label, [600]), 0.12)
 func _play_pattern(tones: Array, duration: float) -> void:
@@ -94,3 +101,21 @@ func _event(kind: String, details: Dictionary = {}) -> void:
 func _notification(what: int) -> void:
     if what == NOTIFICATION_WM_CLOSE_REQUEST:
         _event("session_end")
+
+func _connect_radio() -> void:
+    socket = WebSocketPeer.new()
+    var err := socket.connect_to_url(radio_url)
+    if err != OK:
+        reconnect_at = Time.get_ticks_msec() + 5000
+
+func _process(_delta: float) -> void:
+    socket.poll()
+    if socket.get_ready_state() == WebSocketPeer.STATE_CLOSED and Time.get_ticks_msec() >= reconnect_at:
+        reconnect_at = Time.get_ticks_msec() + 5000
+        _connect_radio()
+    while socket.get_ready_state() == WebSocketPeer.STATE_OPEN and socket.get_available_packet_count() > 0:
+        socket.get_packet()
+
+func _send_radio(kind: String, value: String) -> void:
+    if socket.get_ready_state() == WebSocketPeer.STATE_OPEN:
+        socket.send_text(JSON.stringify({"type": kind, "value": value}))
