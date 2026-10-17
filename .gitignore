@@ -1,2 +1,4 @@
 .godot/
 *.apk
+telemetry/events.jsonl
+telemetry/.venv/
