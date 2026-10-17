@@ -22,8 +22,18 @@ func _ready() -> void:
     panel.add_child(status)
     player = AudioStreamPlayer.new()
     add_child(player)
+    var mic := Button.new()
+    mic.text = "🎙  PUSH TO TALK"
+    mic.custom_minimum_size = Vector2(0, 180)
+    mic.add_theme_font_size_override("font_size", 34)
+    mic.button_down.connect(func(): _signal("WALKIE"))
+    panel.add_child(mic)
+    var grid := GridContainer.new()
+    grid.columns = 3
+    grid.size_flags_vertical = Control.SIZE_EXPAND_FILL
+    panel.add_child(grid)
     for label in SIGNALS:
-        _button(panel, label, Callable(self, "_signal").bind(label))
+        _button(grid, label, Callable(self, "_signal").bind(label))
     for point in POINTS:
         var row := HBoxContainer.new()
         panel.add_child(row)
