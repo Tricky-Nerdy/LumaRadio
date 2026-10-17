@@ -64,6 +64,7 @@ def main():
     running = True
     held_name = None
     held_channel = None
+    page = 0
     light_mode = 0
     brightness = 0.55
     start_ticks = pygame.time.get_ticks()
@@ -78,9 +79,11 @@ def main():
             surf = pygame.transform.smoothscale(surf, (max(1, round(surf.get_width() * scale)), max(1, round(surf.get_height() * scale))))
             screen.blit(surf, (round(offset_x + x * scale), round(offset_y + y * scale)))
         buttons = []
-        for i, name in enumerate(labels):
-            x, y, bw = 56 + (i % 4) * 94, 250 + (i // 4) * 67, 84
-            buttons.append((name, rect(x, y, bw, 61)))
+        for i, name in enumerate(labels[page * 16:(page + 1) * 16]):
+            x, y, bw = 56 + (i % 4) * 94, 284 + (i // 4) * 98, 84
+            buttons.append((name, rect(x, y, bw, 86)))
+        prev_button = rect(60, 690, 110, 36)
+        next_button = rect(310, 690, 110, 36)
         mode_button = rect(54, 235, 178, 28)
         brightness_slider = rect(245, 235, 177, 28)
         for event in pygame.event.get():
@@ -92,6 +95,12 @@ def main():
                     held_channel = None
                     held_name = None
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                if prev_button.collidepoint(event.pos):
+                    page = max(0, page - 1)
+                    continue
+                if next_button.collidepoint(event.pos):
+                    page = min((len(labels) - 1) // 16, page + 1)
+                    continue
                 if mode_button.collidepoint(event.pos):
                     light_mode = (light_mode + 1) % len(MODES)
                     log("light_mode " + MODES[light_mode])
@@ -129,12 +138,17 @@ def main():
         pygame.draw.rect(screen, (61, 73, 65), brightness_slider, border_radius=5)
         pygame.draw.rect(screen, (235, 173, 76), rect(248, 242, 170 * brightness, 12), border_radius=3)
         label("HOLD TO PLAY EFFECTS", 135, 732, small, (208, 221, 199))
+        for nav_box, nav_text in ((prev_button, "PREV"), (next_button, "NEXT")):
+            pygame.draw.rect(screen, COLORS["key"], nav_box, border_radius=6)
+            nav = small.render(nav_text, True, (244, 246, 233))
+            screen.blit(nav, nav.get_rect(center=nav_box.center))
+        label(f"PAGE {page + 1}/{(len(labels) + 15) // 16}", 199, 699, small, (244, 246, 233))
         for idx, (name, box) in enumerate(buttons):
             pygame.draw.rect(screen, COLORS["key"], box, border_radius=round(7 * scale))
             if icon_sheet is not None:
-                icon_id = idx % 64
+                icon_id = (page * 16 + idx) % 64
                 src = pygame.Rect(8 + (icon_id % 8) * 72, 8 + (icon_id // 8) * 72, 64, 64)
-                icon = pygame.transform.smoothscale(icon_sheet.subsurface(src), (max(1, round(42 * scale)), max(1, round(27 * scale))))
+                icon = pygame.transform.smoothscale(icon_sheet.subsurface(src), (max(1, round(42 * scale)), max(1, round(42 * scale))))
                 screen.blit(icon, (box.centerx - icon.get_width() // 2, box.top + round(5 * scale)))
             pygame.draw.rect(screen, (130, 143, 126), box, max(1, round(2 * scale)), border_radius=round(7 * scale))
             caption = name.replace(" CAPTURED", "+").replace(" LOST", "-")
