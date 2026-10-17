@@ -2,10 +2,13 @@ extends Control
 var player: AudioStreamPlayer
 var status: Label
 var rng := RandomNumberGenerator.new()
+var telemetry_path := "user://lumaradio-telemetry.jsonl"
+var session_id := str(Time.get_unix_time_from_system())
 const SIGNALS := ["SQUAWK", "MORSE SOS", "MORSE CQ", "ROGER", "QSL", "73", "88", "STATIC", "BLASTER", "WALKIE"]
 const POINTS := ["ALPHA", "BRAVO", "CHARLIE", "DELTA", "ECHO"]
 func _ready() -> void:
     rng.randomize()
+    _event("session_start", {"platform": OS.get_name(), "version": "0.1.1"})
     var panel := VBoxContainer.new()
     panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
     panel.add_theme_constant_override("separation", 12)
@@ -34,9 +37,11 @@ func _button(parent: Node, title: String, action: Callable) -> void:
     parent.add_child(b)
 func _objective(point: String, captured: bool) -> void:
     status.text = point + (" CAPTURED" if captured else " LOST")
+    _event("objective", {"point": point, "captured": captured})
     _play_pattern([880, 1175, 1568] if captured else [1568, 784, 392], 0.13)
 func _signal(label: String) -> void:
     status.text = label
+    _event("sound_pressed", {"name": label})
     var patterns := {"SQUAWK":[880,660,920], "MORSE SOS":[650,650,650,0,650,650,650], "MORSE CQ":[650,0,650,0,650], "ROGER":[900,1150], "QSL":[1000,700,1000], "73":[650,900,650], "88":[850,850,1100], "STATIC":[100,120,90,130], "BLASTER":[1300,800,400], "WALKIE":[400,1200,500]}
     _play_pattern(patterns.get(label, [600]), 0.12)
 func _play_pattern(tones: Array, duration: float) -> void:
@@ -61,3 +66,19 @@ func _play_pattern(tones: Array, duration: float) -> void:
     player.stop()
     player.stream = sound
     player.play()
+
+func _event(kind: String, details: Dictionary = {}) -> void:
+    var record := {"timestamp": Time.get_datetime_string_from_system(true), "session": session_id, "event": kind, "data": details}
+    var file := FileAccess.open(telemetry_path, FileAccess.READ_WRITE)
+    if file == null:
+        file = FileAccess.open(telemetry_path, FileAccess.WRITE)
+    if file == null:
+        push_warning("Telemetry file unavailable: " + str(FileAccess.get_open_error()))
+        return
+    file.seek_end()
+    file.store_line(JSON.stringify(record))
+    file.close()
+
+func _notification(what: int) -> void:
+    if what == NOTIFICATION_WM_CLOSE_REQUEST:
+        _event("session_end")
