@@ -8,6 +8,7 @@ from pathlib import Path
 import pygame
 from radio_effects import PROFILES, samples
 from lightbar import MODES, draw_lightbar
+from lan_telemetry import enabled as lan_enabled, send_event
 
 WIDTH, HEIGHT = 480, 800
 RATE = 22050
@@ -60,6 +61,10 @@ def main():
     if sheet_path.exists():
         icon_sheet = pygame.image.load(str(sheet_path)).convert_alpha()
     log("session_start")
+    lan_host = os.environ.get("LUMARADIO_LAN_HOST", "")
+    lan_key = os.environ.get("LUMARADIO_PAIRING_KEY", "")
+    lan_port = int(os.environ.get("LUMARADIO_LAN_PORT", "8765"))
+    lan_seq = 0
     clock = pygame.time.Clock()
     running = True
     held_name = None
@@ -113,6 +118,12 @@ def main():
                     if box.collidepoint(event.pos):
                         status = name
                         log("sound " + name)
+                        if lan_enabled() and lan_host and len(lan_key) >= 16:
+                            # This is a short event notification, not microphone audio.
+                            # Keep the UI responsive by sending in a daemon worker.
+                            import threading
+                            lan_seq += 1
+                            threading.Thread(target=send_event, args=(lan_host, lan_port, lan_key, "sound_pressed:" + name, lan_seq), daemon=True).start()
                         if pygame.mixer.get_init():
                             if name in PROFILES:
                                 held_channel = pygame.mixer.Sound(buffer=samples(name)).play(loops=-1)
