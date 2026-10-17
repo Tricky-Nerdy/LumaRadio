@@ -1,0 +1,109 @@
+"""LumaRadio Pygame walkie-talkie prototype. Offline; debug logging opt-in."""
+import math
+import os
+import struct
+import time
+from array import array
+from pathlib import Path
+import pygame
+
+WIDTH, HEIGHT = 480, 800
+RATE = 22050
+DEBUG = os.environ.get("LUMARADIO_DEBUG") == "1"
+COLORS = {"body": (48, 55, 48), "edge": (19, 23, 21), "screen": (139, 181, 124), "ink": (20, 45, 28), "key": (74, 85, 77)}
+BUTTONS = ["SQUAWK", "MORSE SOS", "MORSE CQ", "ROGER", "QSL", "73", "88", "STATIC", "BLASTER", "WALKIE"]
+POINTS = ["ALPHA", "BRAVO", "CHARLIE", "DELTA", "ECHO"]
+
+def log(event):
+    if DEBUG:
+        path = Path.home() / ".lumaradio" / "telemetry.log"
+        path.parent.mkdir(exist_ok=True)
+        with path.open("a", encoding="utf-8") as handle:
+            handle.write(f"{time.time():.3f} {event}\n")
+
+def tone_sequence(notes):
+    pcm = array("h")
+    for hz, duration in notes:
+        length = int(RATE * duration)
+        for n in range(length):
+            envelope = min(1.0, n / 150, (length - n) / 150)
+            v = int(9500 * envelope * math.sin(2 * math.pi * hz * n / RATE)) if hz else 0
+            pcm.append(v)
+    return pygame.mixer.Sound(buffer=pcm.tobytes())
+
+def notes_for(label):
+    if label == "MORSE SOS":
+        return [(660, .09)] * 3 + [(0, .1)] + [(660, .27)] * 3 + [(0, .1)] + [(660, .09)] * 3
+    if label == "MORSE CQ":
+        return [(660, .27), (660, .09), (660, .27), (660, .09), (0, .1), (660, .27), (660, .27), (660, .09), (660, .27)]
+    if label.endswith("CAPTURED"):
+        return [(850, .12), (1120, .12), (1500, .16)]
+    if label.endswith("LOST"):
+        return [(1500, .12), (750, .12), (400, .18)]
+    tones = {"SQUAWK": [900, 650, 950], "ROGER": [900, 1100], "QSL": [1050, 750, 1050], "73": [650, 950], "88": [850, 850, 1100], "STATIC": [130, 110, 90], "BLASTER": [1350, 800, 420], "WALKIE": [420, 1200, 500]}
+    return [(hz, .12) for hz in tones.get(label, [700])]
+
+def main():
+    pygame.mixer.pre_init(RATE, -16, 1, 512)
+    pygame.init()
+    screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.RESIZABLE)
+    pygame.display.set_caption("LumaRadio • Walkie-Talkie")
+    font = pygame.font.SysFont("dejavusans", 18, bold=True)
+    small = pygame.font.SysFont("dejavusans", 15, bold=True)
+    title = pygame.font.SysFont("dejavusans", 25, bold=True)
+    labels = BUTTONS + [f"{p} CAPTURED" for p in POINTS] + [f"{p} LOST" for p in POINTS]
+    status = "CH 05  •  READY"
+    log("session_start")
+    clock = pygame.time.Clock()
+    running = True
+    while running:
+        w, h = screen.get_size()
+        scale = min(w / WIDTH, h / HEIGHT)
+        offset_x, offset_y = (w - WIDTH * scale) / 2, (h - HEIGHT * scale) / 2
+        def rect(x, y, rw, rh):
+            return pygame.Rect(round(offset_x + x * scale), round(offset_y + y * scale), round(rw * scale), round(rh * scale))
+        def label(text, x, y, f, color):
+            surf = f.render(text, True, color)
+            surf = pygame.transform.smoothscale(surf, (max(1, round(surf.get_width() * scale)), max(1, round(surf.get_height() * scale))))
+            screen.blit(surf, (round(offset_x + x * scale), round(offset_y + y * scale)))
+        buttons = []
+        for i, name in enumerate(labels):
+            if i < 10:
+                x, y, bw = 54 + (i % 2) * 191, 252 + (i // 2) * 53, 181
+            else:
+                j = i - 10
+                x, y, bw = 54 + (j // 5) * 191, 535 + (j % 5) * 42, 181
+            buttons.append((name, rect(x, y, bw, 36)))
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                for name, box in buttons:
+                    if box.collidepoint(event.pos):
+                        status = name
+                        log("sound " + name)
+                        if pygame.mixer.get_init():
+                            tone_sequence(notes_for(name)).play()
+                        break
+        screen.fill((14, 17, 17))
+        pygame.draw.rect(screen, COLORS["body"], rect(26, 36, 428, 738), border_radius=round(34 * scale))
+        pygame.draw.rect(screen, COLORS["edge"], rect(26, 36, 428, 738), max(1, round(5 * scale)), border_radius=round(34 * scale))
+        pygame.draw.rect(screen, (35, 42, 37), rect(185, 5, 110, 38), border_radius=round(7 * scale))
+        pygame.draw.rect(screen, COLORS["screen"], rect(53, 88, 374, 140), border_radius=round(8 * scale))
+        label("LUMA RADIO", 144, 104, title, COLORS["ink"])
+        label(status[:25], 75, 157, font, COLORS["ink"])
+        label("SIGNAL  5 / 9    •    OFFLINE", 75, 193, small, COLORS["ink"])
+        for name, box in buttons:
+            pygame.draw.rect(screen, COLORS["key"], box, border_radius=round(7 * scale))
+            pygame.draw.rect(screen, (130, 143, 126), box, max(1, round(2 * scale)), border_radius=round(7 * scale))
+            txt = small.render(name, True, (244, 246, 233))
+            txt = pygame.transform.smoothscale(txt, (max(1, round(txt.get_width() * scale)), max(1, round(txt.get_height() * scale))))
+            screen.blit(txt, txt.get_rect(center=box.center))
+        label("LUMA ACTUAL  •  GRACIE 01", 98, 746, small, (208, 221, 199))
+        pygame.display.flip()
+        clock.tick(30)
+    log("session_end")
+    pygame.quit()
+
+if __name__ == "__main__":
+    main()
