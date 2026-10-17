@@ -7,6 +7,7 @@ from array import array
 from pathlib import Path
 import pygame
 from radio_effects import PROFILES, samples
+from lightbar import MODES, draw_lightbar
 
 WIDTH, HEIGHT = 480, 800
 RATE = 22050
@@ -63,6 +64,9 @@ def main():
     running = True
     held_name = None
     held_channel = None
+    light_mode = 0
+    brightness = 0.55
+    start_ticks = pygame.time.get_ticks()
     while running:
         w, h = screen.get_size()
         scale = min(w / WIDTH, h / HEIGHT)
@@ -77,6 +81,8 @@ def main():
         for i, name in enumerate(labels):
             x, y, bw = 56 + (i % 4) * 94, 250 + (i // 4) * 67, 84
             buttons.append((name, rect(x, y, bw, 61)))
+        mode_button = rect(54, 235, 178, 28)
+        brightness_slider = rect(245, 235, 177, 28)
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
@@ -86,6 +92,14 @@ def main():
                     held_channel = None
                     held_name = None
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                if mode_button.collidepoint(event.pos):
+                    light_mode = (light_mode + 1) % len(MODES)
+                    log("light_mode " + MODES[light_mode])
+                    continue
+                if brightness_slider.collidepoint(event.pos):
+                    brightness = max(0.0, min(1.0, (event.pos[0] - brightness_slider.x) / brightness_slider.w))
+                    log("brightness " + str(round(brightness, 2)))
+                    continue
                 for name, box in buttons:
                     if box.collidepoint(event.pos):
                         status = name
@@ -109,7 +123,12 @@ def main():
         label("LUMA RADIO", 144, 104, title, COLORS["ink"])
         label(status[:25], 75, 157, font, COLORS["ink"])
         label("SIGNAL  5 / 9    •    OFFLINE", 75, 193, small, COLORS["ink"])
-        label("HOLD EFFECT KEYS TO TRANSMIT", 75, 215, small, COLORS["ink"])
+        draw_lightbar(screen, rect(53, 210, 374, 18), MODES[light_mode], brightness, (pygame.time.get_ticks() - start_ticks) / 1000.0)
+        pygame.draw.rect(screen, (61, 73, 65), mode_button, border_radius=5)
+        label("LIGHT: " + MODES[light_mode], 60, 238, small, (244, 246, 233))
+        pygame.draw.rect(screen, (61, 73, 65), brightness_slider, border_radius=5)
+        pygame.draw.rect(screen, (235, 173, 76), rect(248, 242, 170 * brightness, 12), border_radius=3)
+        label("HOLD TO PLAY EFFECTS", 135, 732, small, (208, 221, 199))
         for idx, (name, box) in enumerate(buttons):
             pygame.draw.rect(screen, COLORS["key"], box, border_radius=round(7 * scale))
             if icon_sheet is not None:
@@ -122,7 +141,7 @@ def main():
             txt = small.render(caption, True, (244, 246, 233))
             txt = pygame.transform.smoothscale(txt, (max(1, round(txt.get_width() * scale)), max(1, round(txt.get_height() * scale))))
             screen.blit(txt, txt.get_rect(center=(box.centerx, box.bottom - round(14 * scale))))
-        label("LUMA ACTUAL  •  GRACIE 01", 98, 746, small, (208, 221, 199))
+        label("LUMA ACTUAL  •  GRACIE 01", 98, 762, small, (208, 221, 199))
         pygame.display.flip()
         clock.tick(30)
     log("session_end")
