@@ -11,6 +11,8 @@ func check(condition: bool, message: String) -> void:
         printerr("FAIL: " + message)
 
 func run() -> void:
+    root.content_scale_size = Vector2i(1280, 820)
+    root.content_scale_mode = Window.CONTENT_SCALE_MODE_CANVAS_ITEMS
     root.size = Vector2i(1280, 820)
     var scene: PackedScene = load("res://scenes/solar_map.tscn")
     check(scene != null, "Solar scene loads")
@@ -21,6 +23,10 @@ func run() -> void:
     root.add_child(app)
     await process_frame
     await process_frame
+    if DisplayServer.get_name() != "headless":
+        DisplayServer.window_set_size(Vector2i(1280, 820))
+        root.size = Vector2i(1280, 820)
+        await process_frame
     check(app.planets.size() == 9, "Sun and eight worlds")
     check(app.selected == "Mars", "Initial selection")
     check(not app.bridge.paired, "No automatic network connection")
@@ -52,6 +58,7 @@ func run() -> void:
         app.tabs.current_tab = 0
         await process_frame
         await RenderingServer.frame_post_draw
+        check(root.get_texture().get_image().get_width() >= 1000, "Capture desktop viewport at a readable width")
         check(root.get_texture().get_image().save_png("res://build/ui/solar-map-desktop.png") == OK, "Capture map layout")
         app.tabs.current_tab = 1
         await process_frame

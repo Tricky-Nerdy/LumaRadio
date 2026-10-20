@@ -291,6 +291,7 @@ func _build_ui() -> void:
     panel.add_child(layout)
     var brand := _label(layout, "FORGE / SOLAR STATION", 32)
     brand.add_theme_color_override("font_color", LIME)
+    _label(layout, "0.3.0 PREVIEW", 18)
     state_label = _label(layout, "OFFLINE · TEXT / DATA ONLY", 18)
     tabs = TabContainer.new()
     tabs.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -541,7 +542,7 @@ func _process(delta: float) -> void:
         return
     if not xr_active:
         if is_instance_valid(desktop_panel):
-            desktop_panel.size = Vector2(minf(410, get_viewport().get_visible_rect().size.x * 0.42), maxf(300, get_viewport().get_visible_rect().size.y - 24))
+            desktop_panel.size = Vector2(minf(410, get_viewport().get_visible_rect().size.x - 24), maxf(300, get_viewport().get_visible_rect().size.y - 24))
         var forward := Vector3(camera.global_basis.z.x, 0, camera.global_basis.z.z).normalized()
         var side := Vector3(camera.global_basis.x.x, 0, camera.global_basis.x.z).normalized()
         var move := Vector2(float(Input.is_physical_key_pressed(KEY_D)) - float(Input.is_physical_key_pressed(KEY_A)), float(Input.is_physical_key_pressed(KEY_S)) - float(Input.is_physical_key_pressed(KEY_W)))

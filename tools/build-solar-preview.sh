@@ -44,7 +44,7 @@ if grep "android.permission.RECORD_AUDIO" "$SOLAR_ROOT/dist/Solar-APK-metadata.t
 grep -E 'IMMERSIVE_HMD|com.oculus.intent.category.VR' "$SOLAR_ROOT/dist/Solar-manifest.txt"
 "$SOLAR_GODOT" --headless --path "$SOLAR_ROOT" --export-debug 'Linux Solar Preview' "$SOLAR_ROOT/dist/Luma-Forge-Solar-Map.x86_64"
 chmod +x "$SOLAR_ROOT/dist/Luma-Forge-Solar-Map.x86_64"
-timeout 30 "$SOLAR_ROOT/dist/Luma-Forge-Solar-Map.x86_64" --headless --xr-mode off --quit-after 5 2>&1 | tee "$SOLAR_ROOT/dist/Solar-export-launch.log"
+timeout 30 "$SOLAR_ROOT/dist/Luma-Forge-Solar-Map.x86_64" --main-pack "$SOLAR_ROOT/dist/Luma-Forge-Solar-Map.x86_64" --headless --xr-mode off --quit-after 5 2>&1 | tee "$SOLAR_ROOT/dist/Solar-export-launch.log"
 if grep -E 'SCRIPT ERROR|Parse Error|Failed to load script' "$SOLAR_ROOT/dist/Solar-export-launch.log"; then exit 1; fi
 grep 'SOLAR_PREVIEW_READY bodies=9 audio_nodes=0' "$SOLAR_ROOT/dist/Solar-export-launch.log"
 cd "$SOLAR_ROOT/dist"
