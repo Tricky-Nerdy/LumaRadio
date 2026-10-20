@@ -10,7 +10,8 @@ const GREEN := Color("a5e2af")
 
 var player: AudioStreamPlayer
 var socket := WebSocketPeer.new()
-var radio_url := "ws://192.168.0.102:8765"
+var radio_url := "ws://127.0.0.1:8765"
+var radio_link_enabled := false
 var reconnect_at := 0
 var status: Label
 var connection: Label
@@ -29,6 +30,9 @@ var telemetry_path := "user://lumaradio-telemetry.jsonl"
 var session_id := str(Time.get_unix_time_from_system())
 
 func _ready() -> void:
+    if OS.has_feature("solar_station"):
+        get_tree().change_scene_to_file.call_deferred("res://scenes/solar_map.tscn")
+        return
     rng.randomize()
     var saved := ConfigFile.new()
     if saved.load("user://radio-settings.cfg") == OK:
@@ -38,7 +42,6 @@ func _ready() -> void:
     player = AudioStreamPlayer.new()
     add_child(player)
     _apply_volume()
-    _connect_radio()
     _event("session_start", {"platform": OS.get_name(), "version": VERSION})
 
 func _surface(fill: Color, edge: Color, radius: int = 16) -> StyleBoxFlat:
@@ -162,7 +165,7 @@ func _build_ui() -> void:
     status = _label(display, "READY / LOCAL TONES", 23, GREEN)
     status.name = "ActionStatus"
     status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-    link_detail = _label(display, "Desktop control link: connecting", 17, MUTED)
+    link_detail = _label(display, "Control link disconnected / connect under Link", 17, MUTED)
     link_detail.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
     ptt = Button.new()
     ptt.name = "PushToSignal"
@@ -236,6 +239,11 @@ func _build_ui() -> void:
     explanation.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
     _button(link, "SET DESKTOP LINK", _show_link_settings)
     _button(link, "RECONNECT", _connect_radio)
+    _button(link, "DISCONNECT", func() -> void:
+        _release_ptt()
+        radio_link_enabled = false
+        socket.close()
+    )
     tabs.current_tab = 1
     _label(body, "COMMAND CENTER / OFFLINE SOUNDBOARD", 16, MUTED)
 
@@ -374,6 +382,7 @@ func _notification(what: int) -> void:
             _release_ptt()
 
 func _connect_radio() -> void:
+    radio_link_enabled = true
     if is_instance_valid(ptt):
         _release_ptt()
     socket.close()
@@ -385,6 +394,8 @@ func _connect_radio() -> void:
     last_link_state = -1
 
 func _process(_delta: float) -> void:
+    if OS.has_feature("solar_station") or OS.get_environment("LUMARADIO_TEST_OFFLINE") == "1":
+        return
     socket.poll()
     var state := socket.get_ready_state()
     if state != last_link_state and is_instance_valid(connection):
@@ -395,7 +406,7 @@ func _process(_delta: float) -> void:
         link_detail.text = "Desktop controls connected / microphone off" if online else "Desktop offline / local sound effects available"
         if not online:
             _release_ptt()
-    if state == WebSocketPeer.STATE_CLOSED and Time.get_ticks_msec() >= reconnect_at:
+    if radio_link_enabled and state == WebSocketPeer.STATE_CLOSED and Time.get_ticks_msec() >= reconnect_at:
         _connect_radio()
     while socket.get_ready_state() == WebSocketPeer.STATE_OPEN and socket.get_available_packet_count() > 0:
         socket.get_packet()
@@ -404,3 +415,4 @@ func _send_radio(kind: String, value: String) -> bool:
     if socket.get_ready_state() == WebSocketPeer.STATE_OPEN:
         return socket.send_text(JSON.stringify({"type": kind, "value": value})) == OK
     return false
+

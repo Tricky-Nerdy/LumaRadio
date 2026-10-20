@@ -1,0 +1,134 @@
+name: Silent station checks
+on:
+  pull_request:
+    paths:
+      - station/**
+      - telemetry/**
+      - tests/test_station*.py
+      - tests/test_station*.cjs
+      - forge-hub/**
+      - tools/**
+      - scripts/**
+      - scenes/**
+      - tests/smoke_*.gd
+      - project.godot
+      - export_presets.cfg
+      - .github/workflows/station.yml
+  push:
+    branches: [main, command-center-preview-20261020]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  forge-android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Install Android build tools
+        run: $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+      - name: Build the separate Forge Solar preview
+        run: |
+          bash tools/build-forge-station.sh
+          $ANDROID_HOME/build-tools/35.0.0/aapt dump badging dist/Forge-Solar-Station-0.3.0-preview.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Forge-Solar-Station-Android
+          if-no-files-found: error
+          path: |
+            dist/Forge-Solar-Station-0.3.0-preview.apk
+            dist/Forge-Solar-Station-SHA256.txt
+  browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: python -m pip install -r telemetry/requirements.txt
+      - name: Install browser checks
+        run: |
+          npm install --prefix "$RUNNER_TEMP/forge-browser" playwright@1.62.1
+          "$RUNNER_TEMP/forge-browser/node_modules/.bin/playwright" install --with-deps chromium
+      - name: Verify offline studio and real station connection
+        run: |
+          node tests/test_station_web.cjs
+          NODE_PATH="$RUNNER_TEMP/forge-browser/node_modules" node tests/test_station_browser.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Forge-studio-layouts
+          path: build/ui/
+  godot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Install the project's verified Godot version
+        run: |
+          curl --fail --location --retry 2 https://github.com/godotengine/godot-builds/releases/download/4.7.2-stable/Godot_v4.7.2-stable_linux.x86_64.zip -o godot.zip
+          echo 'cadd3204e728a35d3f13adb7fd0d7902636b79f6b95c40c265eb73b6c35329e4  godot.zip' | sha256sum --check
+          unzip -q godot.zip -d godot-bin
+          chmod +x godot-bin/Godot_v4.7.2-stable_linux.x86_64
+      - name: Import and run the station adapter smoke check
+        run: |
+          godot-bin/Godot_v4.7.2-stable_linux.x86_64 --headless --path . --editor --quit 2>&1 | tee godot-import.log
+          if grep -E 'SCRIPT ERROR|Parse Error|Failed to load script' godot-import.log; then exit 1; fi
+          godot-bin/Godot_v4.7.2-stable_linux.x86_64 --headless --path . --script res://tests/smoke_station.gd
+          godot-bin/Godot_v4.7.2-stable_linux.x86_64 --headless --path . --script res://tests/smoke_solar.gd
+      - name: Verify actual Godot/Python station networking
+        run: |
+          python -m pip install -r telemetry/requirements.txt
+          GODOT_BIN="$PWD/godot-bin/Godot_v4.7.2-stable_linux.x86_64" python -m unittest discover -s tests -p test_engine_network.py -v
+      - name: Render the solar and station layouts
+        run: xvfb-run -a godot-bin/Godot_v4.7.2-stable_linux.x86_64 --path . --audio-driver Dummy --rendering-method gl_compatibility --script res://tests/smoke_solar.gd -- --capture
+      - name: Install export templates and Android tools
+        run: |
+          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+          curl --fail --location --retry 2 https://github.com/godotengine/godot-builds/releases/download/4.7.2-stable/Godot_v4.7.2-stable_export_templates.tpz -o templates.tpz
+          echo 'f298490b8d44d934be425a5a65a51bf15f422428b229a06a6e11d9ffea248011  templates.tpz' | sha256sum --check
+          unzip -q templates.tpz -d export-templates
+          mkdir -p ~/.local/share/godot/export_templates/4.7.2.stable
+          cp export-templates/templates/* ~/.local/share/godot/export_templates/4.7.2.stable/
+      - name: Build and validate solar Android and Linux previews
+        run: GODOT_BIN="$PWD/godot-bin/Godot_v4.7.2-stable_linux.x86_64" bash tools/build-solar-preview.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Luma-Forge-Solar-previews
+          if-no-files-found: error
+          path: |
+            dist/Luma-Forge-Solar-Map-0.3.0-preview.apk
+            dist/Luma-Forge-Solar-Map.x86_64
+            dist/Solar-*.txt
+            dist/Solar-export-launch.log
+            build/ui/solar-*.png
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Godot-station-check-log
+          path: godot-import.log
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Godot-runtime-linux
+          path: godot-bin/Godot_v4.7.2-stable_linux.x86_64
+  station:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m pip install -r telemetry/requirements.txt
+      - run: python -m unittest discover -s tests -v

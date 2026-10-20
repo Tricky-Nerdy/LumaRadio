@@ -1,7 +1,9 @@
 config_version=5
 [application]
 config/name="LumaRadio"
+config/name.solar_station="Luma Forge Solar Preview"
 config/version="0.2.0"
+config/version.solar_station="0.3.0-preview"
 config/icon="res://assets/radio-icon.svg"
 run/main_scene="res://scenes/main.tscn"
 config/features=PackedStringArray("4.7", "Mobile")
@@ -10,6 +12,10 @@ window/size/viewport_width=720
 window/size/viewport_height=1280
 window/size/window_width_override=450
 window/size/window_height_override=800
+window/size/viewport_width.solar_station=1280
+window/size/viewport_height.solar_station=820
+window/size/window_width_override.solar_station=1280
+window/size/window_height_override.solar_station=820
 window/stretch/mode="canvas_items"
 window/handheld/orientation=1
 [rendering]
@@ -18,3 +24,8 @@ renderer/rendering_method.mobile="gl_compatibility"
 
 [rendering/textures/vram_compression]
 import_etc2_astc=true
+
+[xr]
+openxr/enabled.solar_station=true
+shaders/enabled.solar_station=true
+
