@@ -11,6 +11,39 @@ on:
 permissions:
   contents: read
 jobs:
+  forge-source:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Recover the published Forge source
+        run: |
+          curl --fail --location --retry 2 https://github.com/Tricky-Nerdy/LumaRadio/releases/download/command-center-preview/ForgeHub-0.1.2-android-source.zip -o forge-source.zip
+          echo '1ffcbae166bf7b838414689d57ce8f451aef8d5fc99b52aa24547dfdbdc56619  forge-source.zip' | sha256sum --check
+          unzip -q forge-source.zip -d forge-source
+          find forge-source -type f -printf '%P\n' | sort
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Forge-published-source
+          path: forge-source/
+  godot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install the project's verified Godot version
+        run: |
+          curl --fail --location --retry 2 https://github.com/godotengine/godot-builds/releases/download/4.7.2-stable/Godot_v4.7.2-stable_linux.x86_64.zip -o godot.zip
+          echo 'cadd3204e728a35d3f13adb7fd0d7902636b79f6b95c40c265eb73b6c35329e4  godot.zip' | sha256sum --check
+          unzip -q godot.zip -d godot-bin
+          chmod +x godot-bin/Godot_v4.7.2-stable_linux.x86_64
+      - name: Import and run the station adapter smoke check
+        run: |
+          godot-bin/Godot_v4.7.2-stable_linux.x86_64 --headless --path . --editor --quit 2>&1 | tee godot-import.log
+          if grep -E 'SCRIPT ERROR|Parse Error|Failed to load script' godot-import.log; then exit 1; fi
+          godot-bin/Godot_v4.7.2-stable_linux.x86_64 --headless --path . --script res://tests/smoke_station.gd
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Godot-station-check-log
+          path: godot-import.log
   station:
     runs-on: ubuntu-latest
     steps:
