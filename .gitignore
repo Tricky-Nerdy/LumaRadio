@@ -5,4 +5,10 @@ telemetry/.venv/
 __pycache__/
 *.py[cod]
 build/
+dist/
+*.keystore
+station/web/
+forge-hub/android/assets/
+forge-hub/android/build/
+forge-hub/dist/
 

@@ -13,18 +13,39 @@ import time
 from collections import deque
 from datetime import datetime, timezone
 from pathlib import Path
+from functools import lru_cache
+from http import HTTPStatus
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from station.programming import generate_program
 from station.signals import encode_signal
 from websockets.asyncio.server import serve
 from websockets.exceptions import ConnectionClosed
+from websockets.datastructures import Headers
+from websockets.http11 import Response
 
 HOST = os.getenv("LUMA_HOST", "127.0.0.1")
 PORT = int(os.getenv("LUMA_PORT", "8765"))
 LOG = Path(__file__).with_name("events.jsonl")
 PROTOCOL = "forge.station/1"
 MAX_BYTES = 65536
+
+
+@lru_cache(maxsize=1)
+def studio_html():
+    from tools.build_station_web import render_bundle
+    return render_bundle().encode('utf-8')
+
+
+def studio_response(connection, request):
+    if request.headers.get('Upgrade', '').lower() == 'websocket':
+        return None
+    if request.path not in ('/', '/index.html'):
+        return Response(HTTPStatus.NOT_FOUND, 'Not Found', Headers({'Content-Length': '0'}), b'')
+    body = studio_html()
+    return Response(HTTPStatus.OK, 'OK', Headers({'Content-Type': 'text/html; charset=utf-8',
+                    'Content-Length': str(len(body)), 'Cache-Control': 'no-store',
+                    'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'no-referrer'}), body)
 
 
 class Relay:
@@ -155,9 +176,13 @@ def transport_context(host):
 async def main():
     context = transport_context(HOST)
     relay = Relay(os.getenv("LUMA_STATION_PAIRING_KEY", ""), log=LOG if os.getenv("LUMARADIO_DEBUG") == "1" else None)
-    async with serve(relay.handle, HOST, PORT, ssl=context, origins=[None],
-                     max_size=MAX_BYTES, max_queue=16, close_timeout=2):
-        print(f"Luma Radio controls + silent station on {HOST}:{PORT}", flush=True)
+    authority = f'[{HOST}]' if ':' in HOST else HOST
+    scheme = 'https' if context else 'http'
+    studio_origin = f'{scheme}://{authority}:{PORT}' if PORT else re.compile(r'^http://127\.0\.0\.1:\d+$')
+    async with serve(relay.handle, HOST, PORT, ssl=context, origins=[None, 'null', 'https://forge.invalid', studio_origin],
+                     process_request=studio_response, max_size=MAX_BYTES, max_queue=16, close_timeout=2) as server:
+        bound_port = server.sockets[0].getsockname()[1]
+        print(f"Luma Radio controls + silent station on {HOST}:{bound_port}", flush=True)
         await asyncio.Future()
 
 

@@ -1,0 +1,11 @@
+[
+  {"name":"Sun","color":"#f2bd5d","size":1.2},
+  {"name":"Mercury","color":"#aea59b","size":0.18},
+  {"name":"Venus","color":"#dbc28a","size":0.28},
+  {"name":"Earth","color":"#6eabcf","size":0.3},
+  {"name":"Mars","color":"#d88d6e","size":0.23},
+  {"name":"Jupiter","color":"#d9bb9b","size":0.65},
+  {"name":"Saturn","color":"#e2d0a0","size":0.55},
+  {"name":"Uranus","color":"#a0d3d5","size":0.4},
+  {"name":"Neptune","color":"#6d8bcd","size":0.38}
+]

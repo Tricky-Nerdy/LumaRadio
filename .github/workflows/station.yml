@@ -5,25 +5,61 @@ on:
       - station/**
       - telemetry/**
       - tests/test_station*.py
+      - tests/test_station*.cjs
+      - forge-hub/**
+      - tools/**
+      - scripts/**
       - .github/workflows/station.yml
   push:
     branches: [feature/forge-solar-station-20261020]
 permissions:
   contents: read
 jobs:
-  forge-source:
+  forge-android:
     runs-on: ubuntu-latest
     steps:
-      - name: Recover the published Forge source
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Install Android build tools
+        run: $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+      - name: Build the separate Forge Solar preview
         run: |
-          curl --fail --location --retry 2 https://github.com/Tricky-Nerdy/LumaRadio/releases/download/command-center-preview/ForgeHub-0.1.2-android-source.zip -o forge-source.zip
-          echo '1ffcbae166bf7b838414689d57ce8f451aef8d5fc99b52aa24547dfdbdc56619  forge-source.zip' | sha256sum --check
-          unzip -q forge-source.zip -d forge-source
-          find forge-source -type f -printf '%P\n' | sort
+          bash tools/build-forge-station.sh
+          $ANDROID_HOME/build-tools/35.0.0/aapt dump badging dist/Forge-Solar-Station-0.3.0-preview.apk
       - uses: actions/upload-artifact@v4
         with:
-          name: Forge-published-source
-          path: forge-source/
+          name: Forge-Solar-Station-Android
+          if-no-files-found: error
+          path: |
+            dist/Forge-Solar-Station-0.3.0-preview.apk
+            dist/Forge-Solar-Station-SHA256.txt
+  browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: python -m pip install -r telemetry/requirements.txt
+      - name: Install browser checks
+        run: |
+          npm install --prefix "$RUNNER_TEMP/forge-browser" playwright@1.62.1
+          "$RUNNER_TEMP/forge-browser/node_modules/.bin/playwright" install --with-deps chromium
+      - name: Verify offline studio and real station connection
+        run: |
+          node tests/test_station_web.cjs
+          NODE_PATH="$RUNNER_TEMP/forge-browser/node_modules" node tests/test_station_browser.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Forge-studio-layouts
+          path: build/ui/
   godot:
     runs-on: ubuntu-latest
     steps:
@@ -44,6 +80,10 @@ jobs:
         with:
           name: Godot-station-check-log
           path: godot-import.log
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Godot-runtime-linux
+          path: godot-bin/Godot_v4.7.2-stable_linux.x86_64
   station:
     runs-on: ubuntu-latest
     steps:
