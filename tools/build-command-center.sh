@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+set -euo pipefail
+LUMA_PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+LUMA_BUILD_DIR="${LUMA_BUILD_DIR:-$LUMA_PROJECT_ROOT/build/command-center}"
+LUMA_SDK="${ANDROID_SDK_ROOT:-$HOME/.cache/forge-hub-sdk}"
+LUMA_BT="$LUMA_SDK/build-tools/35.0.0"
+LUMA_KEYSTORE="${GODOT_ANDROID_KEYSTORE_DEBUG_PATH:-$HOME/.local/share/godot/keystores/debug.keystore}"
+mkdir -p "$LUMA_BUILD_DIR"
+godot --headless --path "$LUMA_PROJECT_ROOT" --export-debug 'Android Command Center' "$LUMA_BUILD_DIR/radio-godot.apk"
+python3 "$LUMA_PROJECT_ROOT/tools/fix_android_authority.py" "$LUMA_BUILD_DIR/radio-godot.apk" "$LUMA_BUILD_DIR/radio-unsigned.apk"
+"$LUMA_BT/zipalign" -f -P 16 4 "$LUMA_BUILD_DIR/radio-unsigned.apk" "$LUMA_BUILD_DIR/radio-aligned.apk"
+export LUMA_SIGNING_PASS="${GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD:-android}"
+"$LUMA_BT/apksigner" sign --ks "$LUMA_KEYSTORE" --ks-pass env:LUMA_SIGNING_PASS --ks-key-alias "${GODOT_ANDROID_KEYSTORE_DEBUG_USER:-androiddebugkey}" --out "$LUMA_BUILD_DIR/LumaRadio-0.2.0-command-center.apk" "$LUMA_BUILD_DIR/radio-aligned.apk"
+"$LUMA_BT/apksigner" verify --verbose "$LUMA_BUILD_DIR/LumaRadio-0.2.0-command-center.apk"
+"$LUMA_BT/zipalign" -c -P 16 4 "$LUMA_BUILD_DIR/LumaRadio-0.2.0-command-center.apk"
+sha256sum "$LUMA_BUILD_DIR/LumaRadio-0.2.0-command-center.apk"
