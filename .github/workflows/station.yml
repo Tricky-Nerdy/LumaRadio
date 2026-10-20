@@ -9,9 +9,14 @@ on:
       - forge-hub/**
       - tools/**
       - scripts/**
+      - scenes/**
+      - tests/smoke_*.gd
+      - project.godot
+      - export_presets.cfg
       - .github/workflows/station.yml
   push:
-    branches: [feature/forge-solar-station-20261020]
+    branches: [main, command-center-preview-20261020]
+  workflow_dispatch:
 permissions:
   contents: read
 jobs:
@@ -64,6 +69,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
       - name: Install the project's verified Godot version
         run: |
           curl --fail --location --retry 2 https://github.com/godotengine/godot-builds/releases/download/4.7.2-stable/Godot_v4.7.2-stable_linux.x86_64.zip -o godot.zip
@@ -75,6 +84,29 @@ jobs:
           godot-bin/Godot_v4.7.2-stable_linux.x86_64 --headless --path . --editor --quit 2>&1 | tee godot-import.log
           if grep -E 'SCRIPT ERROR|Parse Error|Failed to load script' godot-import.log; then exit 1; fi
           godot-bin/Godot_v4.7.2-stable_linux.x86_64 --headless --path . --script res://tests/smoke_station.gd
+          godot-bin/Godot_v4.7.2-stable_linux.x86_64 --headless --path . --script res://tests/smoke_solar.gd
+      - name: Render the solar and station layouts
+        run: xvfb-run -a godot-bin/Godot_v4.7.2-stable_linux.x86_64 --path . --rendering-method gl_compatibility --script res://tests/smoke_solar.gd -- --capture
+      - name: Install export templates and Android tools
+        run: |
+          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+          curl --fail --location --retry 2 https://github.com/godotengine/godot-builds/releases/download/4.7.2-stable/Godot_v4.7.2-stable_export_templates.tpz -o templates.tpz
+          echo 'f298490b8d44d934be425a5a65a51bf15f422428b229a06a6e11d9ffea248011  templates.tpz' | sha256sum --check
+          unzip -q templates.tpz -d export-templates
+          mkdir -p ~/.local/share/godot/export_templates/4.7.2.stable
+          cp export-templates/templates/* ~/.local/share/godot/export_templates/4.7.2.stable/
+      - name: Build and validate solar Android and Linux previews
+        run: GODOT_BIN="$PWD/godot-bin/Godot_v4.7.2-stable_linux.x86_64" bash tools/build-solar-preview.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Luma-Forge-Solar-previews
+          if-no-files-found: error
+          path: |
+            dist/Luma-Forge-Solar-Map-0.3.0-preview.apk
+            dist/Luma-Forge-Solar-Map.x86_64
+            dist/Solar-*.txt
+            dist/Solar-export-launch.log
+            build/ui/solar-*.png
       - uses: actions/upload-artifact@v4
         if: always()
         with:

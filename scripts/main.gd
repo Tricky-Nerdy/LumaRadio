@@ -29,6 +29,9 @@ var telemetry_path := "user://lumaradio-telemetry.jsonl"
 var session_id := str(Time.get_unix_time_from_system())
 
 func _ready() -> void:
+    if OS.has_feature("solar_station"):
+        get_tree().change_scene_to_file.call_deferred("res://scenes/solar_map.tscn")
+        return
     rng.randomize()
     var saved := ConfigFile.new()
     if saved.load("user://radio-settings.cfg") == OK:
@@ -38,7 +41,8 @@ func _ready() -> void:
     player = AudioStreamPlayer.new()
     add_child(player)
     _apply_volume()
-    _connect_radio()
+    if OS.get_environment("LUMARADIO_TEST_OFFLINE") != "1":
+        _connect_radio()
     _event("session_start", {"platform": OS.get_name(), "version": VERSION})
 
 func _surface(fill: Color, edge: Color, radius: int = 16) -> StyleBoxFlat:
@@ -385,6 +389,8 @@ func _connect_radio() -> void:
     last_link_state = -1
 
 func _process(_delta: float) -> void:
+    if OS.has_feature("solar_station") or OS.get_environment("LUMARADIO_TEST_OFFLINE") == "1":
+        return
     socket.poll()
     var state := socket.get_ready_state()
     if state != last_link_state and is_instance_valid(connection):
@@ -404,3 +410,4 @@ func _send_radio(kind: String, value: String) -> bool:
     if socket.get_ready_state() == WebSocketPeer.STATE_OPEN:
         return socket.send_text(JSON.stringify({"type": kind, "value": value})) == OK
     return false
+
