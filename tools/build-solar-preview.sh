@@ -27,14 +27,16 @@ PY
 export GODOT_ANDROID_KEYSTORE_DEBUG_PATH="$SOLAR_PREVIEW_KEYSTORE"
 export GODOT_ANDROID_KEYSTORE_DEBUG_USER=androiddebugkey
 export GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD=android
-"$SOLAR_GODOT" --headless --path "$SOLAR_ROOT" --export-debug 'Android Solar Preview' "$SOLAR_OUT/raw.apk"
-python3 "$SOLAR_ROOT/tools/fix_android_authority.py" "$SOLAR_OUT/raw.apk" "$SOLAR_OUT/unsigned.apk" --authority org.trickynerdy.lumasolar.preview.androidx-startup
-"$SOLAR_TOOLS/zipalign" -f -P 16 4 "$SOLAR_OUT/unsigned.apk" "$SOLAR_OUT/aligned.apk"
+python3 "$SOLAR_ROOT/tools/make_solar_android_template.py" \
+  "${XDG_DATA_HOME:-$HOME/.local/share}/godot/export_templates/4.7.2.stable/android_source.zip" "$SOLAR_OUT/android_source.zip"
+"$SOLAR_GODOT" --headless --path "$SOLAR_ROOT" --install-android-build-template --export-debug 'Android Solar Preview' "$SOLAR_OUT/raw.apk"
+"$SOLAR_TOOLS/zipalign" -f -P 16 4 "$SOLAR_OUT/raw.apk" "$SOLAR_OUT/aligned.apk"
 "$SOLAR_TOOLS/apksigner" sign --ks "$SOLAR_PREVIEW_KEYSTORE" --ks-key-alias androiddebugkey --ks-pass pass:android \
   --out "$SOLAR_ROOT/dist/Luma-Forge-Solar-Map-0.3.0-preview.apk" "$SOLAR_OUT/aligned.apk"
 "$SOLAR_TOOLS/apksigner" verify --verbose --print-certs "$SOLAR_ROOT/dist/Luma-Forge-Solar-Map-0.3.0-preview.apk"
 "$SOLAR_TOOLS/zipalign" -c -P 16 4 "$SOLAR_ROOT/dist/Luma-Forge-Solar-Map-0.3.0-preview.apk"
 "$SOLAR_TOOLS/aapt" dump badging "$SOLAR_ROOT/dist/Luma-Forge-Solar-Map-0.3.0-preview.apk" > "$SOLAR_ROOT/dist/Solar-APK-metadata.txt"
+cat "$SOLAR_ROOT/dist/Solar-APK-metadata.txt"
 grep "name='org.trickynerdy.lumasolar.preview'" "$SOLAR_ROOT/dist/Solar-APK-metadata.txt"
 grep "name='android.hardware.vr.headtracking'" "$SOLAR_ROOT/dist/Solar-APK-metadata.txt"
 if grep "android.permission.RECORD_AUDIO" "$SOLAR_ROOT/dist/Solar-APK-metadata.txt"; then exit 1; fi
