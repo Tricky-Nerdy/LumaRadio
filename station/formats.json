@@ -1,0 +1,50 @@
+{
+  "mars_news": {
+    "title": "Mars News",
+    "minutes": 5,
+    "purpose": "A focused Mars bulletin: what happened, where, why it matters, and what comes next.",
+    "beats": [
+      ["opening", "Station ID and lead", 1, "Identify the station, setting, and the single lead story. State simulation status when applicable."],
+      ["report", "Lead report", 4, "Develop the lead with location, cause, and consequences; distinguish observations from inference."],
+      ["context", "Map and background", 3, "Explain the selected Mars location and background needed to understand this same story."],
+      ["outlook", "What happens next", 2, "Give the next development to watch, uncertainties, and a clean sign-off. Do not restart the introduction."]
+    ]
+  },
+  "star_news": {
+    "title": "Star News",
+    "minutes": 6,
+    "purpose": "One astronomy story explained clearly, with evidence, scale, uncertainty, and context from the solar map.",
+    "beats": [
+      ["opening", "Station ID and headline", 1, "Name the station and the astronomy topic; identify simulation or sourced mode."],
+      ["discovery", "The story", 4, "Explain the central finding or fictional event without inventing current real-world news."],
+      ["explanation", "Why it matters", 4, "Explain the science and scale in ordinary language, using the same central story."],
+      ["limits", "What we know and do not know", 2, "Separate evidence from interpretation; identify missing information."],
+      ["closing", "Recap and handoff", 1, "Return to the headline, summarize the takeaway, and close without unrelated filler."]
+    ]
+  },
+  "talk_hour": {
+    "title": "Talk Hour",
+    "minutes": 60,
+    "purpose": "A one-topic discussion with a clear question, connected chapters, a fair challenge, and a useful conclusion.",
+    "beats": [
+      ["opening", "Welcome and central question", 3, "Identify the station, host, simulation status, and the one question guiding this episode."],
+      ["background", "Shared background", 10, "Give only the background needed to follow that question."],
+      ["first_view", "First perspective", 12, "Develop a concrete view and example connected to the background."],
+      ["challenge", "Challenge and response", 12, "Test the first view with a fair counterpoint. Respond to it rather than starting another topic."],
+      ["application", "Apply it to the map", 15, "Apply the discussion to the selected place or object. Clearly label any fictional scenario."],
+      ["closing", "Synthesis and sign-off", 8, "Answer the opening question, name remaining uncertainty, and close. Do not fabricate callers."]
+    ]
+  },
+  "interview": {
+    "title": "Interviews",
+    "minutes": 20,
+    "purpose": "An interview that introduces its guest, asks one question at a time, follows the answers, and closes the loop.",
+    "beats": [
+      ["opening", "Introduce guest and purpose", 2, "Introduce the station, host, guest, and reason for the interview. Fictional guests must be labeled."],
+      ["background", "Guest background", 3, "Ask how the guest came to this subject. In sourced mode, leave answers pending unless a supplied guest transcript supports them."],
+      ["experience", "Concrete experience", 6, "Ask for one specific example on the central topic. Follow the actual supplied answer or the explicitly fictional answer."],
+      ["follow_up", "Follow-up and challenge", 6, "Build on the preceding answer, clarify uncertainty, and ask one fair challenging question."],
+      ["closing", "Takeaway and thanks", 3, "Return to the opening purpose, invite a final takeaway, thank the guest, and sign off."]
+    ]
+  }
+}

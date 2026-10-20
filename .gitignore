@@ -2,3 +2,7 @@
 *.apk
 telemetry/events.jsonl
 telemetry/.venv/
+__pycache__/
+*.py[cod]
+build/
+
