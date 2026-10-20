@@ -134,8 +134,9 @@ public final class MainActivity extends Activity {
         label(body,"YOUR WORKSHOP, CONNECTED");
         body.addView(text("Build something\nworth tuning into.",31,FG,true)); gap(body,10);
         body.addView(text("One hub for your radio, local AI, and desktop tools.",15,MUTED,false)); gap(body,22);
-        LinearLayout hero=card("FIRST MISSION  ·  MVP 01","Luma Radio","Your first Forge app. Install the existing radio preview, or open it if it's already on this phone.");
+        LinearLayout hero=card("FORGE SOLAR  ·  PREVIEW 0.3","Solar Station","Plan a focused show, choose a world, and preview silent data signals. Planning and map selection work offline.");
         hero.addView(button("Open Solar Station",true,this::openBroadcast));
+        hero.addView(button("Open 3D / VR map on this device",false,this::openSolarMap));
         hero.addView(button("Open Luma Radio  ↗",false,this::openRadio));
         hero.addView(button("Install verified Radio preview",false,this::installRadio));
         label(body,"DESKTOP TELEMETRY");
@@ -174,16 +175,16 @@ public final class MainActivity extends Activity {
     }
     private void radio() {
         label(body,"LUMA RADIO  /  BROADCAST");
-        LinearLayout c=card("RADIO PREVIEW","The signal starts here.","This release is the existing LumaRadio Android preview. The continuous news-and-story station is the next project stage; this hub does not claim it is broadcasting.");
+        LinearLayout c=card("SOLAR STATION","The program starts here.","Create connected text briefs and silent data signals. The legacy soundboard remains a separate app; this station produces no voice or tones.");
         c.addView(button("Open Broadcast Studio",true,this::openBroadcast));
         c.addView(button("Open Button Radio (legacy Godot)",false,this::openRadio)); c.addView(button("Install Button Radio preview",false,this::installRadio));
-        LinearLayout rundown=card("PLANNED PROGRAM CLOCK","The all-day format","A clear repeatable rundown for the Luma station.");
-        segment(rundown,"00:00","News bulletin","5 minutes · verified sources and timestamps");
-        segment(rundown,"05:00","Original story","2 minutes · clearly introduced fiction");
-        segment(rundown,"07:00","News bulletin","5 minutes · fresh items or labeled repeats");
-        segment(rundown,"12:00","Commercial break","1 minute · fictional station promotion");
-        rundown.addView(text("Schedule design only. A local playback engine and current-news feed are still required for unattended broadcasting.",12,AMBER,false));
-        LinearLayout next=card("CONTROL ROOM","Keep the channel honest.","Real news needs a retrieval time and source. Fiction and promotions need clear labels. A new chat or dot is a producer handoff; continuous audio needs a running player.");
+        LinearLayout rundown=card("PROMPTED FORMATS","Choose a connected show.","Each format has its own running order and editable target duration.");
+        segment(rundown,"5 min","Mars News","Lead report, map context, and the next development.");
+        segment(rundown,"6 min","Star News","One astronomy story, its science, limits, and takeaway.");
+        segment(rundown,"60 min","Talk Hour","One question, perspectives, a fair challenge, and synthesis.");
+        segment(rundown,"20 min","Interviews","Guest purpose, experience, follow-ups, and closing.");
+        rundown.addView(text("Target times plan the show; they do not measure a rendered performance. AI drafting needs a paired model host.",12,AMBER,false));
+        LinearLayout next=card("CONTROL ROOM","Keep the channel honest.","Creative direction sets the focus. Fiction stays labeled, and source-based stories need notes. Drafts are text; no audio is generated.");
         next.addView(button("View Radio repository",false,()->openWeb("https://github.com/Tricky-Nerdy/LumaRadio")));
     }
     private void segment(LinearLayout c,String time,String title,String detail) {
@@ -196,8 +197,10 @@ public final class MainActivity extends Activity {
         LinearLayout c=card("ANDROID PACKAGE MANAGER","Your phone. Your approval.","No root. No silent installs. Forge checks a package before handing it to Android, and Android asks you to approve the installation.");
         c.addView(button("Check Radio Command Center update",true,this::installRadio));
         c.addView(text("Radio Command Center 0.2.0\nSHA-256: "+RADIO_HASH,11,MUTED,false));
-        LinearLayout f=card("FORGE HUB  ·  0.1.2-PREVIEW","Signed update feed",prefs.contains("feed_url")?"A trusted feed is configured. Updates require a valid signed manifest, APK hash, matching app identity, and the installed signing certificate.":"The built-in Command Center preview feed is verified with its publisher key. Your custom trusted feed, if configured, takes priority for Forge updates.");
-        f.addView(button("Check Forge update",false,this::checkForgeUpdate)); f.addView(button("Configure trusted feed",false,this::configureFeed));
+        boolean solarPreview=getPackageName().equals("org.trickynerdy.forgehub.solarpreview");
+        LinearLayout f=card(solarPreview?"SOLAR STATION  ·  0.3.0-PREVIEW":"FORGE HUB  ·  0.1.2-PREVIEW",solarPreview?"Separate preview package":"Signed update feed",solarPreview?"This build installs alongside your existing Forge app. It uses a development signer and does not replace the original app or its trusted update feed.":prefs.contains("feed_url")?"A trusted feed is configured. Updates require a valid signed manifest, APK hash, matching app identity, and the installed signing certificate.":"The built-in Command Center preview feed is verified with its publisher key. Your custom trusted feed, if configured, takes priority for Forge updates.");
+        if(solarPreview)f.addView(button("View preview builds",false,()->openWeb("https://github.com/Tricky-Nerdy/LumaRadio/pull/1")));
+        else {f.addView(button("Check Forge update",false,this::checkForgeUpdate));f.addView(button("Configure trusted feed",false,this::configureFeed));}
         LinearLayout p=card("PRIVATE BY DEFAULT","Local profile only","Your display name, pairing token, and preferences are stored in this app's private storage. No cloud signup or account synchronization is active.");
         p.addView(button("Edit local profile",false,this::profile));
         p.addView(button("Forget desktop pairing",false,()->{prefs.edit().remove("desktop_url").remove("desktop_token").apply();desktop=null;say("Desktop pairing removed.");render();}));
@@ -257,6 +260,11 @@ public final class MainActivity extends Activity {
     }
     private void openBroadcast() {
         page="Solar";render();
+    }
+    private void openSolarMap() {
+        Intent launch=getPackageManager().getLaunchIntentForPackage("org.trickynerdy.lumasolar.preview");
+        if(launch==null){say("Install the Luma Forge Solar Map preview on this device to open it here.");return;}
+        startActivity(launch);
     }
     private void showSolarStation() {
         stationView=new WebView(this);

@@ -24,7 +24,7 @@ func run() -> void:
     check(app.planets.size() == 9, "Sun and eight worlds")
     check(app.selected == "Mars", "Initial selection")
     check(not app.bridge.paired, "No automatic network connection")
-    check(app.find_children("*", "AudioStreamPlayer", true, false).is_empty(), "No audio nodes")
+    check(app.audio_node_count() == 0, "No audio nodes")
     app.select_body("Saturn")
     check(app.selected == "Saturn", "World selection")
     app.focus_selected()

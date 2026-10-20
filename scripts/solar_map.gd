@@ -43,6 +43,7 @@ var signal_format: OptionButton
 var signal_output: TextEdit
 var receiver: LineEdit
 var pairing_key: LineEdit
+var receiver_certificate: TextEdit
 var station_prompt := ""
 var pending_generation := false
 var scroll_at := 0
@@ -81,6 +82,10 @@ func _ready() -> void:
     bridge.program_received.connect(_program_received)
     select_body("Mars")
     build_outline()
+    print("SOLAR_PREVIEW_READY bodies=", planets.size(), " audio_nodes=", audio_node_count(), " xr=", xr_active)
+
+func audio_node_count() -> int:
+    return find_children("*", "AudioStreamPlayer", true, false).size() + find_children("*", "AudioStreamPlayer2D", true, false).size() + find_children("*", "AudioStreamPlayer3D", true, false).size()
 
 func _build_world() -> void:
     var environment := WorldEnvironment.new()
@@ -370,6 +375,11 @@ func _build_ui() -> void:
     receiver = _entry(link, "wss:// private LAN receiver")
     pairing_key = _entry(link, "Pairing key")
     pairing_key.secret = true
+    _label(link, "Trusted receiver certificate (optional PEM)", 20)
+    receiver_certificate = TextEdit.new()
+    receiver_certificate.placeholder_text = "Paste the public certificate for a private-CA receiver. No private keys."
+    receiver_certificate.custom_minimum_size.y = 160
+    link.add_child(receiver_certificate)
     _button(link, "Pair station", pair_station)
     _button(link, "Disconnect", func() -> void: bridge.disconnect_station())
     _label(link, "Pairing keys are not saved in templates. LAN connections require a trusted TLS certificate.", 18)
@@ -476,7 +486,14 @@ func send_signal() -> void:
         state_label.text = "Pair a receiver before sending. Preview remains offline."
 
 func pair_station() -> void:
-    var error: Error = bridge.connect_station(receiver.text.strip_edges(), "solar-" + str(Time.get_ticks_usec()), pairing_key.text)
+    var options: TLSOptions = null
+    if not receiver_certificate.text.strip_edges().is_empty():
+        var certificate := X509Certificate.new()
+        if certificate.load_from_string(receiver_certificate.text.strip_edges()) != OK:
+            state_label.text = "Use the receiver's public PEM certificate, without a private key."
+            return
+        options = TLSOptions.client(certificate)
+    var error: Error = bridge.connect_station(receiver.text.strip_edges(), "solar-" + str(Time.get_ticks_usec()), pairing_key.text, options)
     if error == OK:
         pairing_key.clear()
     else:

@@ -1,91 +1,50 @@
-# Forge Solar station and silent signals
+# Forge Solar station integration
 
-This source extends the existing Radio WebSocket receiver and provides a producer for the existing
-Forge Broadcast studio. It introduces no alternative Forge interface and does not install or publish
-an APK. The new station path is text/data only; legacy soundboard buttons remain a separate feature.
-Do not connect station signal events to the legacy soundboard's `_signal` or `_play_pattern` methods.
+The new previews reuse the published Forge Android shell and the Radio receiver. The standalone solar scene uses the same producer contract and does not depend on a particular PC. No existing installed app, publisher signing key or update feed was changed.
 
-## Source audit and integration boundary
+## Source audit
 
-| Source | Verified access in this change | Use |
-| --- | --- | --- |
-| `Tricky-Nerdy/LumaRadio`, `command-center-preview-20261020`, commit `1bc85dd3435ba26798e59223b3b26f62cf87cfb6` | Read current source | Reuse its receiver, control/ACK contract, Godot project, and tests |
-| `Tricky-Nerdy/Forge`, `main` | Read repository tree and catalog code | Confirm it contains the provenance library, not the live Forge Hub UI |
-| Forge Hub Android source release | Source archive listed in Command Center release; download unavailable from this environment | No claim that its contents were inspected or changed |
-| PC `~/Documents/ForgeHub` | Omarchy Desktop Commander offline | Existing Broadcast generator, blue UI, templates and saved settings must be inspected before wiring this producer into them |
-| PC `~/Documents/Main/Luma` | Same offline PC | Project notes and Markdown not read or modified in this change |
-| PC solar/VR project | Source not located in connected Git repositories | Attach adapter after locating current source and instructions; preserve watch, casting, travel and rendering behavior |
-| Gists | Current GitHub connector exposes no gist reader | Not audited or changed |
+| Source | Result |
+| --- | --- |
+| Radio Command Center branch, base commit `1bc85dd3435ba26798e59223b3b26f62cf87cfb6` | Reused receiver/control ACK contract, Godot project, source and tests |
+| Released Forge Hub 0.1.2 Android source | Recovered through a hosted build, hash-checked, inspected and included under `forge-hub/`; existing UI helpers/styles retained |
+| Forge repository main branch | Inspected; contains the provenance library rather than the current desktop Broadcast UI |
+| PC/Obsidian/gists | Not accessed in this continuation; original PC-only source/features are not claimed as recovered |
 
-Do not replace the current Forge studio, duplicate its navigation, change its app identities or
-signers, rewrite the Obsidian vault, or infer live telemetry from old notes. Reconcile current PC
-source with this branch before changing any installed runtime. The existing standalone Command
-Center still uses its legacy UI until the new adapter is deliberately connected.
+The Forge companion adds a Solar workspace within its existing navigation and opens that workspace from its Broadcast control. Its studio is bundled as one self-contained HTML asset, with no remote page load, JavaScript-to-Java bridge, microphone access or automatic host connection. The existing legacy Radio app remains separate.
 
-## Station producer
+The Godot solar preview is a new scene with a separate export identity. World positions and sizes are stylized. OpenXR initializes when a runtime is available; desktop mode supplies click selection and WASD movement. Controller rays select worlds and operate the in-world panel; thumbstick scroll works over the panel and travel works away from it.
 
-`station.programming.generate_program(request)` can be imported by Forge's current desktop
-generator. Keep its existing template, master/session, source/destination, Generate/Remix,
-transcript and transport controls. Map the creative-direction boxes to `direction`, the current
-solar selection snapshot to `map_context`, and the selected format to `show`.
+## Producer contract
+
+Call `station.programming.generate_program(request)` from an existing Forge backend, or send `forge.program` through the paired receiver. A request specifies:
+
+- `show`: `mars_news`, `star_news`, `talk_hour` or `interview`.
+- `topic`, `direction`, `host`, optional `guest`, whole-minute `minutes`.
+- `mode`: `simulation` (explicit fiction) or `sourced`.
+- `map_context`: an explicit selection snapshot, not a claim of live telemetry.
+- `sources`: source notes with unique ID, title, substantive notes, optional URL/date, and `guest_transcript: true` only for supplied guest answers.
 
 | Format | Default target | Progression |
 | --- | --- | --- |
-| `mars_news` | 5 minutes | Lead → report → map/background → next development |
-| `star_news` | 6 minutes | Headline → story → science → uncertainty → recap |
-| `talk_hour` | 60 minutes | One question → background → perspective → challenge → application → synthesis |
-| `interview` | 20 minutes | Guest/purpose → background → experience → follow-up → takeaway |
+| Mars News | 5 min | Lead → report → map/background → next development |
+| Star News | 6 min | Headline → story → science → uncertainty → recap |
+| Talk Hour | 60 min | One question → background → perspective → challenge → application → synthesis |
+| Interviews | 20 min | Guest/purpose → background → experience → follow-up → takeaway |
 
-The clock sums to the requested target. It is a planned running order, not measured playback or
-a guarantee that a short cue script fills an hour. There is no audio render in this path.
+The exact running order sums to the requested target; it does not measure a completed performance. Creative direction is never intended as reader-facing dialogue.
 
-Example input to the producer or the adapter's `request_program`:
+`prompt_ready` means an outline and generation brief, `draft_ready` means validated text cues, and `needs_review` means failed/incomplete model output was withheld. Draft validation checks beat order, speaker consistency, source references, unsupported guest answers, literal direction copying, duplicate cues and production markup. It cannot prove factual accuracy, natural delivery or narrative quality. A URL is attribution metadata, not fetched evidence.
 
-```json
-{
-  "show": "mars_news",
-  "mode": "simulation",
-  "topic": "Keeping a fictional Mars settlement supplied with water",
-  "host": "Luma",
-  "direction": "Calm, curious reporting. Follow the water story from cause to consequences, then the next step.",
-  "map_context": {"body": "Mars", "selection": "Gale crater"},
-  "sources": []
-}
-```
+Configure a local model host with `LUMA_STATION_LLM_URL`, `LUMA_STATION_MODEL`, and optionally `LUMA_STATION_LLM_KEY` in its protected runtime environment. Proxy/redirect routing to external endpoints is disabled. No live model output quality is claimed from fake-model integration tests.
 
-Simulation mode is explicitly labeled fictional. Sourced mode requires notes with unique IDs,
-titles and substantive content; URLs alone do not count as fetched evidence. Supply `published_at`
-when known. Model references must point to supplied IDs. Interview answers in sourced mode need
-source notes explicitly marked `guest_transcript: true`; otherwise only host questions are allowed.
-The generator audits structure, speakers, repeated cues, literal copying of creative direction,
-production markup and source references. These checks cannot prove factual accuracy, natural
-acting, or narrative coherence; drafts still require editorial review.
+## Receiver and pairing
 
-Return statuses are `prompt_ready` (outline and model prompt, no configured model), `draft_ready`
-(validated text cues), or `needs_review` (model/validation failed, no partial script exposed).
-Preserve that distinction in the existing UI. Never label an outline as generated news or a draft
-as an on-air performance. Generation returns only to the requesting app, not to every peer.
+Run the existing `python3 telemetry/server.py` service. It serves the studio and WebSocket protocol on the same port, 8765 by default. Loopback is the default bind. Do not start another receiver on an occupied port.
 
-For local LM Studio generation, configure `LUMA_STATION_LLM_URL` as its local base URL and
-`LUMA_STATION_MODEL` as the actual loaded model ID. Optional `LUMA_STATION_LLM_KEY` stays in
-the protected runtime environment. The HTTP client disables proxies and redirects, accepts
-loopback/private IP endpoints only, bounds the response, and rejects incomplete output. No live
-model response was tested on Omarchy during this change.
+For LAN access, use a specific private `LUMA_HOST`, `LUMA_TLS_CERT`, `LUMA_TLS_KEY`, and a protected `LUMA_STATION_PAIRING_KEY` of at least 16 characters. No wildcard/public bind or port forwarding is introduced. With a private CA, explicitly install the CA on Android; the Forge preview trusts user-installed and system CAs. The Godot Link panel also accepts a public PEM certificate as an explicit trust anchor. Hostname/IP validation remains enabled; private keys never belong in the client UI.
 
-## Existing receiver and app contract
-
-Install dependencies from `telemetry/requirements.txt`, then use the existing receiver service
-entry point, `python3 telemetry/server.py`. Do not run a second receiver on the same port.
-Default bind is `127.0.0.1:8765`. For the existing LAN interface, set `LUMA_HOST` to its specific
-private address and provide `LUMA_TLS_CERT` and `LUMA_TLS_KEY`. Clients must trust that certificate;
-do not bypass TLS verification. No wildcard/public bind, discovery, port forwarding or new firewall
-rules are added. Browser origins are rejected; the existing Forge desktop producer can import
-the Python API, and its existing paired backend can use a native WebSocket client.
-
-New station clients pair with a locally configured `LUMA_STATION_PAIRING_KEY` of at least 16
-characters. Never place the key in Git, an exported prompt, a gist, a URL, or Obsidian. The Godot
-adapter accepts an in-memory key and clears it after handshake. Existing `button`/`ptt` messages
-retain their legacy ACK shape and do not render audio in this receiver.
+Browsers served by the receiver, bundled offline files, the Forge Android studio origin and native clients can use the paired contract. Keys stay in memory, are cleared after the handshake, and are excluded from saved templates. Do not place them in Git, gists, URLs or Obsidian.
 
 First message:
 
@@ -93,46 +52,21 @@ First message:
 {"type":"forge.hello","app_id":"solar-vr","key":"<runtime-pairing-key>"}
 ```
 
-After `forge.ready`, every request has a fresh `id` and an increasing positive `seq` for that
-connection. All routed messages use `protocol: "forge.station/1"` and `audio: false`.
+After `forge.ready`, each request includes a fresh `id` and increasing positive `seq` for that connection. Routed messages use `protocol: "forge.station/1"` and `audio: false`.
 
-| Type | Request fields | Result |
+| Type | Fields | Result |
 | --- | --- | --- |
-| `forge.signal` | `format: "morse"`, `text`, optional `target` | Dot/dash text and visual pulse units: marks 1/3, inner gaps 1, letter gaps 3, word gaps 7 |
-| `forge.signal` | `format: "u8"` or `"u16"`, either `text` or `values`, optional `target` | UTF-8 bytes or UTF-16BE code units; explicit unsigned width, values and hex |
-| `forge.context` | `map_context`, optional `target` | Current explicit selection snapshot |
-| `forge.program` | `request` as above | `forge.program.result` only to the requester |
+| `forge.signal` | `format: "morse"`, `text`, optional `target` | Dot/dash string and timing pulses: marks 1/3, inner gaps 1, letter gaps 3, word gaps 7 |
+| `forge.signal` | `format: "u8"` or `"u16"`, exactly one of `text` or `values` | Unsigned bytes/code units and hexadecimal representation |
+| `forge.context` | `map_context`, optional `target` | Explicit map selection snapshot |
+| `forge.program` | `request` | Program result only to its requester |
 
-`target` defaults to `*` for paired peers; an app ID targets one peer. Source identity comes from
-the pairing session, not from a sender-supplied field. The sender receives `forge.ack` with the
-number of peer sockets written. Zero means no peer delivery; it does not mean success on a
-physical display. Acknowledgment of writing is not proof that a peer consumed or rendered a cue.
-Old/duplicate sequences are acknowledged without replaying, and disconnected events are not queued.
+The default target is `*` for paired peers; a peer ID targets one app. Source identity comes from its pairing session. `forge.ack.delivered` counts peer sockets written, not physical display rendering. Zero means no peer delivery. Old sequences are acknowledged without replay, and disconnected messages are not queued. Legacy button/PTT ACKs remain compatible and the receiver renders no audio.
 
-The 8-/16-bit setting is a **data-word format**, not PCM audio or an automatic change of visual
-style. Unicode surrogate pairs are preserved. Unsupported Morse characters and out-of-range
-words are rejected rather than silently changed. No physical RF hardware is driven.
+The 8-/16-bit setting is a data-word format, not PCM or a retro graphics mode. Unsupported Morse and out-of-range numeric words are rejected. These apps do not drive radio-transmitter hardware.
 
-## Godot/VR hook
+## Validation and remaining physical checks
 
-`scripts/forge_station.gd` is an opt-in Node to attach to the existing scene or Forge-owned
-controller. It exposes `send_morse`, `send_data`, `send_words`, `publish_map_context` and
-`request_program`. Bind its state/errors/receipts to Forge's current status widgets; show offline,
-pairing, paired, and no-peer delivery honestly. Bind received payloads to the existing watch/map
-or transcript display. A selection snapshot must not overwrite the map's entire scene state.
-The adapter does not auto-connect, discover peers, start tones, or modify casting/tracking.
+The build checks Python producer/network/model contracts, JavaScript parity, real browser interactions, Godot parsing and scene behavior, actual Godot-to-Python paired exchange, native Android compilation, APK signatures/alignment/identities/OpenXR metadata, rendered layouts and exported Linux startup.
 
-## Validation and remaining work
-
-Python tests exercise exact program clocks, source/guest restrictions, generation validation,
-model HTTP requests against a local fake API, failure/truncation/redirect handling, Unicode word
-encoding, Morse timing, multi-client routing, targeted delivery, duplicates, pairing, reconnects,
-no-peer ACKs and the existing LAN/control regressions. These are local software tests, not a
-demonstration of a connected headset, phone, television, real LM Studio instance, or live station.
-
-Godot is unavailable in this workspace, so the new adapter has not passed an engine parse/run
-check. A smoke script is supplied: `godot --headless --path . --script res://tests/smoke_station.gd`.
-Before runtime integration, run Godot with matching project tooling, wire the existing UI,
-test silent TX/RX in both directions on the actual devices, confirm prompt/outline/draft labels,
-and verify the current watch/cast/travel behavior. Preserve the private Android signing keys and
-the current signed updater feeds; no release or installed version is changed by this branch.
+Physical Quest/controller comfort, device install/runtime, TLS trust setup on the user's LAN, live model editorial quality, and casting between actual devices remain unverified. The original app's PC-only wristwatch/cast/tracking implementation is not in this source snapshot. Keep these separate previews distinct from that original app until those sources and device behaviors are reconciled.

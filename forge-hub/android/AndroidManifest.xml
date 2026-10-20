@@ -8,6 +8,7 @@
     <queries>
         <package android:name="org.lumaradio.soundboard" />
         <package android:name="org.lumaradio.commandcenter" />
+        <package android:name="org.trickynerdy.lumasolar.preview" />
     </queries>
     <application android:label="Forge Hub" android:icon="@drawable/ic_forge"
         android:theme="@android:style/Theme.Material.NoActionBar" android:allowBackup="false"
