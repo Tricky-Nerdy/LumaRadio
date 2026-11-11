@@ -73,7 +73,9 @@ def main():
     audio_queue = deque()
     audio_channel = pygame.mixer.Channel(0) if pygame.mixer.get_init() else None
     next_audio_at = 0.0
-    audio_cooldown = 0.5
+    audio_lead = 0.5
+    last_audio_start = float('-inf')
+    minimum_interval = 0.15
     page = 0
     ptt_active = False
     light_mode = 0
@@ -152,13 +154,19 @@ def main():
             ptt_active = False
             status = "PTT RELEASED"
             log("ptt_release")
-        if audio_channel is not None and audio_queue and not audio_channel.get_busy() and time.monotonic() >= next_audio_at:
+        now = time.monotonic()
+        if (audio_channel is not None and audio_queue
+                and now >= next_audio_at
+                and now - last_audio_start >= minimum_interval):
             next_name = audio_queue.popleft()
             clip = (pygame.mixer.Sound(buffer=samples(next_name))
                     if next_name in PROFILES else tone_sequence(notes_for(next_name)))
+            # A single channel stops the old clip before playing the next.
+            # This allows activation in the final 0.5 seconds with zero overlap.
+            audio_channel.stop()
             audio_channel.play(clip)
-            # Cooldown begins after the clip finishes, not before.
-            next_audio_at = time.monotonic() + clip.get_length() + audio_cooldown
+            last_audio_start = now
+            next_audio_at = now + max(0.0, clip.get_length() - audio_lead)
         screen.fill((14, 17, 17))
         pygame.draw.rect(screen, COLORS["body"], rect(26, 36, 428, 738), border_radius=round(34 * scale))
         pygame.draw.rect(screen, COLORS["edge"], rect(26, 36, 428, 738), max(1, round(5 * scale)), border_radius=round(34 * scale))
