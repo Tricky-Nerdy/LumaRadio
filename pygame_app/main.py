@@ -9,6 +9,7 @@ import pygame
 from radio_effects import PROFILES, samples
 from lightbar import MODES, draw_lightbar
 from lan_telemetry import enabled as lan_enabled, send_event
+from collections import deque
 
 WIDTH, HEIGHT = 480, 800
 RATE = 22050
@@ -69,6 +70,10 @@ def main():
     running = True
     held_name = None
     held_channel = None
+    audio_queue = deque()
+    audio_channel = pygame.mixer.Channel(0) if pygame.mixer.get_init() else None
+    next_audio_at = 0.0
+    audio_cooldown = 0.5
     page = 0
     ptt_active = False
     light_mode = 0
@@ -135,12 +140,9 @@ def main():
                             import threading
                             lan_seq += 1
                             threading.Thread(target=send_event, args=(lan_host, lan_port, lan_key, "sound_pressed:" + name, lan_seq), daemon=True).start()
-                        if pygame.mixer.get_init():
-                            if name in PROFILES:
-                                held_channel = pygame.mixer.Sound(buffer=samples(name)).play(loops=-1)
-                                held_name = name
-                            else:
-                                tone_sequence(notes_for(name)).play()
+                        # Serialize playback. Never mix button sounds on top of one another.
+                        # The queue preserves rapid keypresses without playing them simultaneously.
+                        audio_queue.append(name)
                         break
         if held_name and held_channel is not None and not pygame.mouse.get_pressed()[0]:
             held_channel.stop()
@@ -150,6 +152,13 @@ def main():
             ptt_active = False
             status = "PTT RELEASED"
             log("ptt_release")
+        if audio_channel is not None and audio_queue and not audio_channel.get_busy() and time.monotonic() >= next_audio_at:
+            next_name = audio_queue.popleft()
+            clip = (pygame.mixer.Sound(buffer=samples(next_name))
+                    if next_name in PROFILES else tone_sequence(notes_for(next_name)))
+            audio_channel.play(clip)
+            # Cooldown begins after the clip finishes, not before.
+            next_audio_at = time.monotonic() + clip.get_length() + audio_cooldown
         screen.fill((14, 17, 17))
         pygame.draw.rect(screen, COLORS["body"], rect(26, 36, 428, 738), border_radius=round(34 * scale))
         pygame.draw.rect(screen, COLORS["edge"], rect(26, 36, 428, 738), max(1, round(5 * scale)), border_radius=round(34 * scale))
